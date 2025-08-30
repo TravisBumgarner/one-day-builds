@@ -2,7 +2,7 @@
   "name": "plugin2-customui",
   "id": "1543672903753608813",
   "api": "1.0.0",
-  "main": "code.js",
+  "main": "dist/code.js",
   "capabilities": [],
   "enableProposedApi": false,
   "documentAccess": "dynamic-page",
