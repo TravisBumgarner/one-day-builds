@@ -117,9 +117,25 @@ figma.ui.onmessage = (msg: Message) => {
       rgbData.push([uint8Array[i], uint8Array[i + 1], uint8Array[i + 2]]);
     }
 
-    const kmeans_data = kmeans(rgbData, 5);
     rect.fills = [{ type: "IMAGE", scaleMode: "FILL", imageHash: img.hash }];
     const text = figma.createText();
+
+    const kmeans_data = kmeans(rgbData, 5);
+
+    figma.ui.postMessage({ type: "image-uploaded", imageHash: img.hash });
+    console.log("kmeans", kmeans_data);
+    kmeans_data.map((color, i) => {
+      const rect = figma.createRectangle();
+      rect.x = i * 150;
+      rect.y = 0;
+      rect.fills = [
+        {
+          type: "SOLID",
+          color: { r: color[0] / 255, g: color[1] / 255, b: color[2] / 255 },
+        },
+      ];
+      figma.currentPage.appendChild(rect);
+    });
     text.characters = "foobar" + JSON.stringify(kmeans_data);
     figma.currentPage.appendChild(rect);
     figma.currentPage.appendChild(text);

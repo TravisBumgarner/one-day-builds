@@ -1,17 +1,12 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" type="number" value="5" /></p>
 <p>Image: <input id="image-upload" type="file" accept="image/*" /></p>
-<button id="create">Create!</button>
-<
+<p id="status">Hello</p>
 <button id="cancel">Cancel</button>
 <script>
-  document.getElementById("create").onclick = () => {
-    const textbox = document.getElementById("count");
-    const count = parseInt(textbox.value, 10);
-    parent.postMessage(
-      { pluginMessage: { type: "create-shapes", count } },
-      "*"
-    );
+  window.onmessage = (event) => {
+    const message = event.data.pluginMessage;
+    // Handle the message here
+    console.log("Received from code.ts:", message);
+    document.getElementById("status").textContent = "msg" + message.type;
   };
 
   document.getElementById("image-upload").onchange = (event) => {
