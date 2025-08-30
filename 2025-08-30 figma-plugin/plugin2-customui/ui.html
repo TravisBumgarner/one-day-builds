@@ -1,21 +1,73 @@
 <p>Image: <input id="image-upload" type="file" accept="image/*" /></p>
 <p id="status">Hello</p>
 <button id="cancel">Cancel</button>
+
 <script>
   window.onmessage = (event) => {
     const message = event.data.pluginMessage;
-    // Handle the message here
     console.log("Received from code.ts:", message);
-    document.getElementById("status").textContent = "msg" + message.type;
+    document.getElementById("status").textContent = "msg: " + message.type;
   };
 
-  document.getElementById("image-upload").onchange = (event) => {
+  // Decode file into downsampled pixel buffer
+  function getPixelData(base64Url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 500;
+        let targetW = img.width;
+        let targetH = img.height;
+
+        // scale down while maintaining aspect ratio
+        if (targetW > targetH) {
+          if (targetW > maxDim) {
+            targetH = Math.round((targetH * maxDim) / targetW);
+            targetW = maxDim;
+          }
+        } else {
+          if (targetH > maxDim) {
+            targetW = Math.round((targetW * maxDim) / targetH);
+            targetH = maxDim;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const imageData = ctx.getImageData(0, 0, targetW, targetH);
+        resolve({
+          width: targetW,
+          height: targetH,
+          data: Array.from(imageData.data), // plain array for postMessage
+        });
+      };
+      img.src = base64Url;
+    });
+  }
+
+  document.getElementById("image-upload").onchange = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = async function (e) {
+      const base64Url = e.target.result;
+
+      const pixelPayload = await getPixelData(base64Url);
+
       parent.postMessage(
-        { pluginMessage: { type: "upload-image", imageData: e.target.result } },
+        {
+          pluginMessage: {
+            type: "upload-image",
+            imageData: base64Url, // still send for figma.createImage
+            pixelData: pixelPayload.data, // downsampled pixels for kmeans
+            width: pixelPayload.width,
+            height: pixelPayload.height,
+          },
+        },
         "*"
       );
     };
