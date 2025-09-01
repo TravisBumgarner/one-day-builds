@@ -1,26 +1,60 @@
-figma.showUI(__html__);
+import { LETTERS_PLEASE, SinglePayload, WINDOW_HEIGHT, WINDOW_WIDTH } from '../consts';
 
-figma.ui.onmessage = (msg) => {
-  if (msg.type === 'create-rectangles') {
-    const nodes = [];
+figma.showUI(__html__, { width: WINDOW_WIDTH, height: WINDOW_HEIGHT });
 
-    for (let i = 0; i < msg.count; i++) {
-      const rect = figma.createRectangle();
-      rect.x = i * 150;
-      rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }];
-      figma.currentPage.appendChild(rect);
-      nodes.push(rect);
+function findLetterLayers(node: BaseNode & ChildrenMixin): SceneNode[] {
+  let results: SceneNode[] = [];
+
+  for (const child of node.children) {
+    if ('children' in child) {
+      results = results.concat(findLetterLayers(child));
     }
 
-    figma.currentPage.selection = nodes;
-    figma.viewport.scrollAndZoomIntoView(nodes);
+    if (child.name.startsWith('letter_')) {
+      results.push(child);
+    }
+  }
 
-    // This is how figma responds back to the ui
-    figma.ui.postMessage({
-      type: 'create-rectangles',
-      message: `Created ${msg.count} Rectangles`,
+  return results;
+}
+
+type LetterData = {
+  node: SceneNode; // original node reference
+  image: string; // base64 PNG string
+};
+
+async function buildLetterData(nodes: SceneNode[]): Promise<LetterData[]> {
+  const results: LetterData[] = [];
+
+  for (const n of nodes) {
+    const bytes = await n.exportAsync({ format: 'PNG' });
+    const base64 = figma.base64Encode(bytes);
+
+    results.push({
+      node: n,
+      image: base64,
     });
   }
 
-  figma.closePlugin();
+  return results;
+}
+
+figma.ui.onmessage = async (msg) => {
+  if (msg.type === LETTERS_PLEASE) {
+    const matches = findLetterLayers(figma.currentPage);
+    const data = await buildLetterData(matches);
+
+    // ⚠️ Careful: nodes themselves can’t be serialized to UI
+    // They’re live objects only usable inside code.ts.
+    // To send info to UI, extract the props you need:
+    const payload: SinglePayload[] = data.map((d) => ({
+      id: d.node.id,
+      name: d.node.name,
+      width: 'width' in d.node ? d.node.width : undefined,
+      height: 'height' in d.node ? d.node.height : undefined,
+      image: d.image,
+    }));
+
+    figma.ui.postMessage({ type: LETTERS_PLEASE, data: payload });
+  }
 };
