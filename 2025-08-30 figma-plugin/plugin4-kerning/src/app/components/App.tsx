@@ -57,8 +57,19 @@ const createLetterPairings = (chars: string[]) => {
   return pairs;
 };
 
+const serializeKerningDict = (dict: Map<string, Map<string, number>>) => {
+  const obj: Record<string, Record<string, number>> = {};
+  dict.forEach((innerMap, left) => {
+    obj[left] = {};
+    innerMap.forEach((value, right) => {
+      obj[left][right] = value;
+    });
+  });
+  return obj;
+};
+
 function App() {
-  const [activeKerning, setActiveKerning] = React.useState(0);
+  // const [activeKerning, setActiveKerning] = React.useState(0);
   const readOnlyCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const kerningCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const [activePair, setActivePair] = React.useState<[string, string] | null>(null);
@@ -70,6 +81,15 @@ function App() {
 
   const handleCreate = () => {
     parent.postMessage({ pluginMessage: { type: LETTERS_PLEASE } }, '*');
+  };
+
+  const downloadKerningDict = () => {
+    const element = document.createElement('a');
+    const file = new Blob([JSON.stringify(serializeKerningDict(kerningDict))], { type: 'application/json' });
+    element.href = URL.createObjectURL(file);
+    element.download = 'kerningDict.json';
+    document.body.appendChild(element);
+    element.click();
   };
 
   const paintCharsToReadOnlyCanvas = () => {
@@ -107,10 +127,24 @@ function App() {
     };
   }, []);
 
+  const populateKerningDict = (letterPairings: string[][]) => {
+    const newKerningDict = new Map<string, Map<string, number>>();
+    letterPairings.forEach(([left, right]) => {
+      const kerning = 0;
+      if (!newKerningDict.has(left)) newKerningDict.set(left, new Map());
+      newKerningDict.get(left)!.set(right, kerning);
+    });
+    setKerningDict(newKerningDict);
+  };
+
   useEffect(() => {
+    // When charDict is loaded, paint the read only version onto the canvas
+    // Generate all the possible letter pairings.
     if (charDict) {
       paintCharsToReadOnlyCanvas();
-      setLetterPairings(createLetterPairings(Array.from(charDict.keys())));
+      const letterPairings = createLetterPairings(Array.from(charDict.keys()));
+      setLetterPairings(letterPairings);
+      populateKerningDict(letterPairings);
     }
   }, [charDict]);
 
@@ -130,12 +164,30 @@ function App() {
   };
 
   useEffect(() => {
-    console.log('activepair', activePair);
+    // When a new active pair is set, draw it on the canvas.
+    // When the active pair's activeKerning is changed, draw an update on the canvas.
     if (activePair) {
       const [left, right] = activePair;
-      drawKerningOnCanvas({ left, right, kerning: activeKerning });
+      drawKerningOnCanvas({ left, right, kerning: kerningDict.get(left)?.get(right) || 0 });
+      setKerningDict((prev) => {
+        const newDict = new Map(prev);
+        newDict.get(left)?.set(right, kerningDict.get(left)?.get(right) || 0);
+        return newDict;
+      });
     }
-  }, [activeKerning, activePair]);
+  }, [kerningDict, activePair]);
+
+  const updateKerning = (delta: number) => {
+    if (activePair) {
+      const [left, right] = activePair;
+      setKerningDict((prev) => {
+        const newDict = new Map(prev);
+        const previousKerning = newDict.get(left)?.get(right) || 0;
+        newDict.get(left)?.set(right, previousKerning + delta);
+        return newDict;
+      });
+    }
+  };
 
   return (
     <div>
@@ -149,15 +201,33 @@ function App() {
       <p>Current Pairing</p>
       <canvas ref={kerningCanvasRef} style={{ width: 200, height: 100, border: '1px solid red' }}></canvas>
       <div>
-        <button onClick={() => setActiveKerning((prev) => prev - 10)}>-10</button>
-        <button onClick={() => setActiveKerning((prev) => prev - 1)}>-1</button>
-        <button onClick={() => setActiveKerning((prev) => prev - 0.1)}>-0.1</button>
-        <button onClick={() => setActiveKerning((prev) => prev + 0.1)}>+0.1</button>
-        <button onClick={() => setActiveKerning((prev) => prev + 1)}>+1</button>
-        <button onClick={() => setActiveKerning((prev) => prev + 10)}>+10</button>
+        <button style={deltaButtonCSS} onClick={() => updateKerning(-10)}>
+          -10
+        </button>
+        <button style={deltaButtonCSS} onClick={() => updateKerning(-1)}>
+          -1
+        </button>
+        <button style={deltaButtonCSS} onClick={() => updateKerning(-0.1)}>
+          -0.1
+        </button>
+        <button style={deltaButtonCSS} onClick={() => updateKerning(0.1)}>
+          +0.1
+        </button>
+        <button style={deltaButtonCSS} onClick={() => updateKerning(1)}>
+          +1
+        </button>
+        <button style={deltaButtonCSS} onClick={() => updateKerning(10)}>
+          +10
+        </button>
       </div>
+      <button onClick={downloadKerningDict}>Download</button>
     </div>
   );
 }
+
+const deltaButtonCSS = {
+  borderRadius: 0,
+  margin: 1,
+};
 
 export default App;
