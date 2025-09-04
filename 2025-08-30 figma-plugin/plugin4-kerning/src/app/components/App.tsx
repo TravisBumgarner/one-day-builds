@@ -1,6 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import '../styles/ui.css';
-import { LETTERS_PLEASE, SinglePayload, WINDOW_HEIGHT, WINDOW_WIDTH } from '../../consts';
+import { LETTERS_PLEASE, SinglePayload } from '../../consts';
+import doItAll from './makeFont';
+
+function uint8ArrayToString(uint8: Uint8Array): string {
+  return new TextDecoder('utf-8').decode(uint8);
+}
+
+import { type CharDict } from './types';
 
 const Pairs = ({
   letterPairings,
@@ -57,16 +64,16 @@ const createLetterPairings = (chars: string[]) => {
   return pairs;
 };
 
-const serializeKerningDict = (dict: Map<string, Map<string, number>>) => {
-  const obj: Record<string, Record<string, number>> = {};
-  dict.forEach((innerMap, left) => {
-    obj[left] = {};
-    innerMap.forEach((value, right) => {
-      obj[left][right] = value;
-    });
-  });
-  return obj;
-};
+// const serializeKerningDict = (dict: Map<string, Map<string, number>>) => {
+//   const obj: Record<string, Record<string, number>> = {};
+//   dict.forEach((innerMap, left) => {
+//     obj[left] = {};
+//     innerMap.forEach((value, right) => {
+//       obj[left][right] = value;
+//     });
+//   });
+//   return obj;
+// };
 
 function App() {
   // const [activeKerning, setActiveKerning] = React.useState(0);
@@ -74,9 +81,7 @@ function App() {
   const kerningCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const [activePair, setActivePair] = React.useState<[string, string] | null>(null);
   const [kerningDict, setKerningDict] = React.useState<Map<string, Map<string, number>>>(new Map());
-  const [charDict, setCharDict] = React.useState<Map<string, { width: number; height: number; image: string }>>(
-    new Map()
-  );
+  const [charDict, setCharDict] = React.useState<CharDict>(new Map());
   const [letterPairings, setLetterPairings] = React.useState<string[][]>([]);
 
   const handleCreate = () => {
@@ -84,12 +89,14 @@ function App() {
   };
 
   const downloadKerningDict = () => {
-    const element = document.createElement('a');
-    const file = new Blob([JSON.stringify(serializeKerningDict(kerningDict))], { type: 'application/json' });
-    element.href = URL.createObjectURL(file);
-    element.download = 'kerningDict.json';
-    document.body.appendChild(element);
-    element.click();
+    const kerningPairs: Record<string, number> = {};
+    kerningDict.forEach((innerMap, left) => {
+      innerMap.forEach((value, right) => {
+        kerningPairs[`${left}${right}`] = value;
+      });
+    });
+
+    doItAll(charDict, kerningPairs, 'output/MyCustomFont.ttf');
   };
 
   const paintCharsToReadOnlyCanvas = () => {
@@ -98,9 +105,9 @@ function App() {
       let offset = 0;
       if (ctx) {
         ctx.clearRect(0, 0, readOnlyCanvasRef.current.width, readOnlyCanvasRef.current.height);
-        charDict.forEach(({ image, width }) => {
+        charDict.forEach(({ pngBase64, width }) => {
           const img = new Image();
-          img.src = 'data:image/png;base64,' + image;
+          img.src = 'data:image/png;base64,' + pngBase64;
           const currentOffset = offset;
           img.onload = () => {
             ctx.drawImage(img, currentOffset, 0);
@@ -118,9 +125,12 @@ function App() {
       console.log('msg received', msg);
       if (msg.type === LETTERS_PLEASE) {
         const data = msg.data as SinglePayload[];
-        const newCharData = data.reduce((accum, { name, width, height, image }) => {
+        const newCharData = data.reduce((accum, { name, width, height, pngBase64, rawSvg }) => {
           const char = name.replace('letter_', '');
-          return { ...accum, [char]: { width: width || 0, height: height || 0, image } };
+          return {
+            ...accum,
+            [char]: { width: width || 0, height: height || 0, pngBase64, svg: uint8ArrayToString(rawSvg) },
+          };
         }, {});
         setCharDict(new Map(Object.entries(newCharData)));
       }
@@ -152,9 +162,9 @@ function App() {
     const ctx = kerningCanvasRef.current?.getContext('2d');
     if (ctx) {
       const leftImage = new Image();
-      leftImage.src = 'data:image/png;base64,' + charDict.get(left)?.image;
+      leftImage.src = 'data:image/png;base64,' + charDict.get(left)?.pngBase64;
       const rightImage = new Image();
-      rightImage.src = 'data:image/png;base64,' + charDict.get(right)?.image;
+      rightImage.src = 'data:image/png;base64,' + charDict.get(right)?.pngBase64;
 
       ctx.clearRect(0, 0, kerningCanvasRef.current.width, kerningCanvasRef.current.height);
       // Draw the active pair on the kerning canvas
@@ -194,7 +204,20 @@ function App() {
       <button id="create" onClick={handleCreate}>
         Kern!
       </button>
-      <p>Loaded Chars</p>
+      <p>SVGs</p>
+      <div style={{ display: 'flex' }}>
+        {Array.from(charDict.entries()).map(([char, { svg }]) => (
+          <div key={char}>
+            <p>{char}</p>
+            <div
+              dangerouslySetInnerHTML={{
+                __html: svg,
+              }}
+            ></div>
+          </div>
+        ))}
+      </div>
+      <p>Loaded Char PNGs</p>
       <canvas ref={readOnlyCanvasRef} style={{ width: 200, height: 100, border: '1px solid red' }}></canvas>
       <p>Pairs</p>
       <Pairs letterPairings={letterPairings} setActivePair={setActivePair} />

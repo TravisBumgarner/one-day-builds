@@ -20,7 +20,8 @@ function findLetterLayers(node: BaseNode & ChildrenMixin): SceneNode[] {
 
 type LetterData = {
   node: SceneNode; // original node reference
-  image: string; // base64 PNG string
+  pngBase64: string; // base64 PNG string
+  rawSvg: Uint8Array; // raw SVG string
 };
 
 async function buildLetterData(nodes: SceneNode[]): Promise<LetterData[]> {
@@ -28,11 +29,13 @@ async function buildLetterData(nodes: SceneNode[]): Promise<LetterData[]> {
 
   for (const n of nodes) {
     const bytes = await n.exportAsync({ format: 'PNG' });
-    const base64 = figma.base64Encode(bytes);
+    const pngBase64 = figma.base64Encode(bytes);
+    const rawSvg = await n.exportAsync({ format: 'SVG' });
 
     results.push({
       node: n,
-      image: base64,
+      pngBase64,
+      rawSvg,
     });
   }
 
@@ -52,7 +55,8 @@ figma.ui.onmessage = async (msg) => {
       name: d.node.name,
       width: 'width' in d.node ? d.node.width : undefined,
       height: 'height' in d.node ? d.node.height : undefined,
-      image: d.image,
+      pngBase64: d.pngBase64,
+      rawSvg: d.rawSvg,
     }));
 
     figma.ui.postMessage({ type: LETTERS_PLEASE, data: payload });

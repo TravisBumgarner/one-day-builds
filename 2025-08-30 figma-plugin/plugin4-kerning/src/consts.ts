@@ -8,5 +8,6 @@ export type SinglePayload = {
   name: string;
   width?: number;
   height?: number;
-  image: string;
+  pngBase64: string;
+  rawSvg: Uint8Array;
 };
