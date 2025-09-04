@@ -5,25 +5,50 @@ import { type CharDict } from './types';
 
 function svgToOpenTypePath(svg: string) {
   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
-  const d = doc.querySelector('path')?.getAttribute('d');
+  const pathElem = doc.querySelector('path');
+  const d = pathElem?.getAttribute('d');
+  console.log(`Glyph e path d:`, d);
   if (!d) throw new Error('No path found');
+
+  // Get viewBox info
+  const svgElem = doc.querySelector('svg');
+  let viewBox = svgElem?.getAttribute('viewBox');
+  let [vbX, vbY, _vbW, vbH] = [0, 0, 1000, 1000]; // defaults
+  if (viewBox) {
+    [vbX, vbY, _vbW, vbH] = viewBox.split(' ').map(Number);
+  }
+
+  // OpenType.js expects y=0 at baseline, so we need to flip Y and scale
+  const unitsPerEm = 1000; // match your font config
+  const scale = unitsPerEm / vbH;
 
   const commands = parseSVG(d);
   const path = new Path();
 
   commands.forEach((cmd) => {
+    // Flip Y and scale
+    const x = (cmd.x - vbX) * scale;
+    const y = (vbH - (cmd.y - vbY)) * scale; // flip Y
+
     switch (cmd.code) {
       case 'M':
-        path.moveTo(cmd.x, cmd.y);
+        path.moveTo(x, y);
         break;
       case 'L':
-        path.lineTo(cmd.x, cmd.y);
+        path.lineTo(x, y);
         break;
       case 'C':
-        path.curveTo(cmd.x1, cmd.y1, cmd.x2, cmd.y2, cmd.x, cmd.y);
+        path.curveTo(
+          (cmd.x1 - vbX) * scale,
+          (vbH - (cmd.y1 - vbY)) * scale,
+          (cmd.x2 - vbX) * scale,
+          (vbH - (cmd.y2 - vbY)) * scale,
+          x,
+          y
+        );
         break;
       case 'Q':
-        path.quadTo(cmd.x1, cmd.y1, cmd.x, cmd.y);
+        path.quadTo((cmd.x1 - vbX) * scale, (vbH - (cmd.y1 - vbY)) * scale, x, y);
         break;
       case 'Z':
         path.close();
@@ -36,6 +61,7 @@ function svgToOpenTypePath(svg: string) {
 }
 
 const makeGlyph = (char: string, svgString: string) => {
+  console.log('Making glyph for', char, svgString);
   return new Glyph({
     name: char,
     unicode: char.charCodeAt(0),
@@ -46,7 +72,7 @@ const makeGlyph = (char: string, svgString: string) => {
 
 const makeFont = (name: string, kerningPairs: Record<string, number>, glyphs: Glyph[]) => {
   return new Font({
-    familyName: name,
+    familyName: name + Math.floor(Math.random() * 1000),
     styleName: 'Regular',
     unitsPerEm: 1000,
     ascender: 800,
@@ -82,10 +108,10 @@ export function saveFontToDisk(font: Font, fileName: string) {
   console.log(`✅ Font download triggered: ${fileName}`);
 }
 
-const doItAll = (charDict: CharDict, kerningPairs: Record<string, number>, outputPath: string) => {
+const doItAll = (charDict: CharDict, kerningPairs: Record<string, number>) => {
   const glyphs = Array.from(charDict.entries()).map(([char, { svg }]) => makeGlyph(char, svg));
-  const font = makeFont('MyCustomFont', kerningPairs, glyphs);
-  saveFontToDisk(font, outputPath);
+  const font = makeFont('FooBar', kerningPairs, glyphs);
+  saveFontToDisk(font, `$font${Math.random()}.ttf`);
 };
 
 export default doItAll;

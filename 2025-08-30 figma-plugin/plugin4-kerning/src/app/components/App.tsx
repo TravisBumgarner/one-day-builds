@@ -96,7 +96,7 @@ function App() {
       });
     });
 
-    doItAll(charDict, kerningPairs, 'output/MyCustomFont.ttf');
+    doItAll(charDict, kerningPairs);
   };
 
   const paintCharsToReadOnlyCanvas = () => {

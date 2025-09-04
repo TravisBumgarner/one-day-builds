@@ -1,23 +1,31 @@
-# Figma Plugin React Template
+# Kerning
 
-![62862431-71537f00-bd0e-11e9-85db-d97c0fb729a4](https://user-images.githubusercontent.com/16322616/62862692-46b5f600-bd0f-11e9-93b0-75955d1de8f3.png)
+What even?
 
-This template contains the react example as shown on [Figma Docs](https://www.figma.com/plugin-docs/intro/), with some structural changes and extra tooling.
+Grabs svgs from Figma, does terrible things to them, outputs a mostly broken font file.
 
-## Quickstart
+What was supposed to happen with comments below for further research.
 
-- Run `yarn` to install dependencies.
-- Run `yarn build:watch` to start webpack in watch mode.
-- Open `Figma` -> `Plugins` -> `Development` -> `Import plugin from manifest...` and choose `manifest.json` file from this repo.
+1. Create vectors in Figma titled `letter_a` and so on.
+    - SVGs expect viewbox so the some code should be reading that somewhere.
+1. Use `controller.ts` to grab both a PNG and SVG from Figma.
+    - Realizing that PNG probably wasn't needed since fonts want vectors.
+1. Load the PNGs into React
+    - I spent so long screwing with the vectors' sizes that now none of the PNGs are visible in React.
+    - A rewrite to use just SVGs and load them onto the screen instead of PNGs might highlight some bugs. From all my console logging the SVGs seemed fine.
+1. Adjust kernings.
+    - Because of the point mentioned in the previous step, none of the PNGs are visible.
+1. Begin font creation. 
+    - No idea if any of the values in makeFont.ts are remotely correct. I know so little about fonts. 
+1. Convert SVGs to Paths which is what is needed for a font
+1. Attach the kerning table to the font
+1. Name it, save it, download it.
 
-⭐ To change the UI of your plugin (the react code), start editing [App.tsx](./src/app/components/App.tsx).  
-⭐ To interact with the Figma API edit [controller.ts](./src/plugin/controller.ts).  
-⭐ Read more on the [Figma API Overview](https://www.figma.com/plugin-docs/api/api-overview/).
 
-## Toolings
+![Output](output.png)
 
-This repo is using:
+screenshot1
+![Screenshot1](screenshot1.png)
 
-- React + Webpack
-- TypeScript
-- Prettier precommit hook
+screenshot2
+![Screenshot2](screenshot2.png)
