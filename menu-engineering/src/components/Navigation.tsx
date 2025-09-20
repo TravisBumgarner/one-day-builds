@@ -16,7 +16,7 @@ import { BORDER_RADIUS, FONT_SIZES, SPACING } from '../styles/consts'
 type Items = (keyof typeof ROUTES | 'divider')[]
 
 const DropdownLinks = ({ onClose }: { onClose: () => void }) => {
-  const USER_ROUTES: Items = ['home', 'reference']
+  const USER_ROUTES: Items = ['home', 'reference', 'recipeBuilder', 'recipes']
 
   return (
     <>
