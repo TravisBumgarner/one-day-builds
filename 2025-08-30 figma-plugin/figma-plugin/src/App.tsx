@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
-
+import Component from "./src-app/Component";
 function App() {
-  return <p>Hi.!!</p>;
+  return <Component />;
 }
 console.log("doot doot from js");
 

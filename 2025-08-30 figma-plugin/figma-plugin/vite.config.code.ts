@@ -4,9 +4,9 @@ import { resolve } from "path";
 export default defineConfig({
   build: {
     rollupOptions: {
-      input: resolve(__dirname, "src/code.ts"),
+      input: resolve(__dirname, "src/messenger.ts"),
       output: {
-        entryFileNames: `code.js`,
+        entryFileNames: `messenger.js`,
       },
     },
     outDir: "dist",

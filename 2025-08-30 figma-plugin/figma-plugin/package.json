@@ -6,7 +6,7 @@
   "scripts": {
     "dev:ui": "vite build --watch --config vite.config.ui.ts",
     "dev:code": "vite build --watch --config vite.config.code.ts",
-    "build": "npm run dev:ui && npm run dev:code"
+    "dev": "npm run dev:ui && npm run dev:code"
   },
   "keywords": [],
   "author": "",
